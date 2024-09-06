@@ -441,6 +441,9 @@ class ItchClaim:
                 if new_profile not in self.profile_list:
                     self.profile_list.add(new_profile)
 
+                    self._scrape_profile(new_profile, True)
+                    self._scrape_profile(new_profile, False)
+
 
                 if game.url in self.owned_items:
                     continue
@@ -695,19 +698,22 @@ class ItchClaim:
         myfile = open('scrape-active.txt', 'r')
         for game_url in myfile.read().splitlines():
             try:
+                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
+                new_profile = 'https://' + new_author + '.itch.io'
+
+                if new_profile not in self.profile_list:
+                    self.profile_list.add(new_profile)
+
+                    self._scrape_profile(new_profile, True)
+                    self._scrape_profile(new_profile, False)
+
+
                 if game_url in self.owned_items:
                     continue
                 if game_url in self.active_list:
                     continue
                 if game_url in self.ignore_list:
                     continue
-
-
-                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
-                new_profile = 'https://' + new_author + '.itch.io'
-
-                if new_profile not in self.profile_list:
-                    self.profile_list.add(new_profile)
 
 
                 self.active_list.add(game_url)
