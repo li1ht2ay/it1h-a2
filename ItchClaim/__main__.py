@@ -412,6 +412,25 @@ class ItchClaim:
 
 
 
+    def _claim_free(self, url: str = 'https://itchclaim.tmbpeter.com/api/active.json'):
+        """Claim all unowned games. Requires login.
+        Args:
+            url (str): The URL to download the file from"""
+
+        print(f'Downloading free games list from {url}', flush=True)
+        games = DiskManager.download_from_remote_cache(url)
+
+        print('Claiming games', flush=True)
+        for game in games:
+            for owned_url in [owned_game.url for owned_game in self.user.owned_games]:
+                if owned_url == url:
+                    continue
+
+            if not self.user.owns_game(game):
+                self.user.claim_game(game)
+
+
+
     def _scrape_profile(self, url, alt = False):
         try:
             # print(url, flush=True)
@@ -693,6 +712,23 @@ class ItchClaim:
                 print('[scrape_rewards] Failure while checking ' + url + ' = ' + str(err), flush=True)
 
 
+        print(f'Scraping account ...', flush=True)
+
+        for game_url in self.owned_items:
+            try:
+                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
+                new_profile = 'https://' + new_author + '.itch.io'
+
+                if new_profile not in self.profile_list:
+                    self.profile_list.add(new_profile)
+
+                    self._scrape_profile(new_profile, True)
+                    self._scrape_profile(new_profile, False)
+
+            except Exception as err:
+                print('Failure while checking ' + game_url + ' = ' + str(err), flush=True)
+
+
         print(f'Scraping list ...', flush=True)
 
         myfile = open('scrape-active.txt', 'r')
@@ -745,14 +781,6 @@ class ItchClaim:
         """Rate one game. Requires login.
         Args:
             url (str): Game to claim"""
-
-        if self.user is None:
-            print('You must be logged in', flush=True)
-            return
-        if len(self.user.owned_games) == 0:
-            print('User\'s library not found in cache. Downloading it now', flush=True)
-            self.user.reload_owned_games()
-            self.user.save_session()
 
         rated_games = []
         url = 'https://itch.io/library/rated?json'
@@ -988,23 +1016,16 @@ class ItchClaim:
         Args:
             url (str): Game to claim"""
 
-        if self.user is None:
-            print('You must be logged in', flush=True)
-            return
-        if len(self.user.owned_games) == 0:
-            print('User\'s library not found in cache. Downloading it now', flush=True)
-            self.user.reload_owned_games()
-            self.user.save_session()
+        self._login()
 
-        for owned_url in [owned_game.url for owned_game in self.user.owned_games]:
-            if owned_url == url:
-                print(f"{game.url} already claimed", flush=True)  # Python 3.x
-                return
+        self.auto_rating()
+        self._claim_free()
 
-        print(f'Attempting to claim {url}', flush=True)
-        game: ItchGame = ItchGame.from_api(url)
-        self.user.claim_game(game)
-        self._claim_reward(game)
+        with open('itch-owned.txt', 'w') as myfile:
+            for game in self.user.owned_games:
+                if game.url == None:
+                    continue
+                print(f'{game.name:60s} {game.url:50s}', file=myfile)  # Python 3.x
 
 
 
