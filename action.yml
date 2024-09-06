@@ -17,6 +17,20 @@ inputs:
     required: false
     default: 'x64'
 
+  name:
+    description: account
+    required: false
+    default: ''
+
+  password:
+    description: account
+    required: false
+    default: ''
+
+  totp:
+    description: account
+    required: false
+    default: ''
 
 
 runs:
@@ -26,10 +40,20 @@ runs:
 
   - uses: li1ht2ay-3es/gi1-ac2io3s@checkout-branch
     with:
+      repository: li1ht2ay/it1h-a2
       branch: ${{ inputs.branch }}
 
       token: ${{ inputs.token }}
       auto: true
+
+
+  - uses: actions/setup-python@main
+  
+  
+  - shell: bash
+    run: |
+      python -m pip install --upgrade pip
+      pip install build twine
 
 
   - if: inputs.arch == 'x86' || inputs.arch == 'x64'
@@ -38,9 +62,9 @@ runs:
       arch: ${{ inputs.arch }}
 
 
-  - uses: li1ht2ay-3es/cc1ch2-ac3io4@custom
-    with:
-      key: ${{ inputs.arch }}
+#  - uses: li1ht2ay-3es/cc1ch2-ac3io4@custom
+#    with:
+#      key: ${{ inputs.arch }}
 
 
   - shell: bash
@@ -75,13 +99,87 @@ runs:
       CXX: ccache g++
     shell: bash
     run: |
-      make platform="unix"
+      python -m build
+      ls -R
+      pip install ./dist/*.gz
+
+
+
+  - if: inputs.arch == 'so64'
+    working-directory: ${{ github.workspace }}
+    env:
+      CC: ccache gcc
+      CXX: ccache g++
+    shell: bash
+    run: |
+      if curl -L -o scrape.zip --fail 'https://github.com/${{ github.repository }}/archive/refs/heads/scrape-rewards-ci.zip'; then
+        unzip -o -j scrape.zip
+      else
+        echo -n "" > scrape.txt
+        echo -n "" > scrape-ignore.txt
+        echo -n "" > scrape-list.txt
+      fi
+
+
+      itchclaim --login ${{ inputs.name }} --password ${{ inputs.password }} --totp ${{ inputs.totp }} scrape_rewards
+
+      mv *.txt ../
+
+
+
+  - uses: li1ht2ay-3es/gi1-ac2io3s@checkout-repo
+    with:
+      token: ${{ inputs.token }}
+      auto: true
+
+
+
+  - if: inputs.arch == 'so64'
+    working-directory: ${{ github.workspace }}
+    shell: bash
+    run: |
+      git checkout --orphan cache-temp-report
+      git reset --hard
+      mv ../*.txt ./
+
+
+
+  - if: inputs.arch == 'so64'
+    working-directory: ${{ github.workspace }}
+    shell: bash
+    run: |
+      flag=0
+
+      if test -f "scrape.txt"; then
+        git add scrape.txt
+        flag=1
+      fi
+
+      if test -f "scrape-list.txt"; then
+        git add scrape-list.txt
+        flag=1
+      fi
+
+      if test -f "scrape-active.txt"; then
+        git add scrape-active.txt
+        flag=1
+      fi
+
+      if test -f "scrape-ignore.txt"; then
+        git add scrape-ignore.txt
+        flag=1
+      fi
+
+
+      if (( $flag == 1 )); then
+        git commit -m "[cache] rewards"
+        git push -f --set-upstream origin HEAD:scrape-rewards-ci
+      fi
 
 
 
   - uses: actions/upload-artifact@main
     with:
-      name: program_${{ inputs.arch }}
+      name: itch-library
       path: |
-        ${{ github.workspace }}/**.dll
-        ${{ github.workspace }}/**.so
+        ${{ github.workspace }}/scrape*
