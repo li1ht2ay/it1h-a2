@@ -122,6 +122,17 @@ runs:
       fi
 
 
+      if curl -L -o scrape2.zip --fail 'https://github.com/${{ github.repository }}/archive/refs/heads/scrape-rewards-ci2.zip'; then
+        mkdir -p scrape2
+        unzip -o -j scrape2.zip -d scrape2
+
+        cat scrape2/profiles.txt >> profiles.txt
+        cat scrape2/ignore.txt >> ignore.txt
+        cat scrape2/collections.txt >> collections.txt
+        cat scrape2/active.txt >> active.txt
+      fi
+
+
       itchclaim --login ${{ inputs.name }} --password ${{ inputs.password }} --totp ${{ inputs.totp }} scrape_rewards
 
       mv *.txt ../
