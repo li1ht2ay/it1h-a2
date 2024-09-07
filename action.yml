@@ -115,9 +115,10 @@ runs:
       if curl -L -o scrape.zip --fail 'https://github.com/${{ github.repository }}/archive/refs/heads/scrape-rewards-ci.zip'; then
         unzip -o -j scrape.zip
       else
-        echo -n "" > scrape.txt
-        echo -n "" > scrape-ignore.txt
-        echo -n "" > scrape-list.txt
+        echo -n "" > profiles.txt
+        echo -n "" > ignore.txt
+        echo -n "" > collections.txt
+        echo -n "" > active.txt
       fi
 
 
@@ -150,23 +151,23 @@ runs:
     run: |
       flag=0
 
-      if test -f "scrape.txt"; then
-        git add scrape.txt
+      if test -f "profiles.txt"; then
+        git add profiles.txt
         flag=1
       fi
 
-      if test -f "scrape-list.txt"; then
-        git add scrape-list.txt
+      if test -f "collections.txt"; then
+        git add collections.txt
         flag=1
       fi
 
-      if test -f "scrape-active.txt"; then
-        git add scrape-active.txt
+      if test -f "active.txt"; then
+        git add active.txt
         flag=1
       fi
 
-      if test -f "scrape-ignore.txt"; then
-        git add scrape-ignore.txt
+      if test -f "ignore.txt"; then
+        git add ignore.txt
         flag=1
       fi
 
