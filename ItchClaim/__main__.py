@@ -667,7 +667,7 @@ class ItchClaim:
 
         self.valid_reward = False
         self.scrape_count = 0
-        self.scrape_limit = 5000  # 500 = 4m, 1000 = 6m, 2000 = 13m, 2500 = 16m, 5000 ~ 32m
+        self.scrape_limit = 2000  # 500 = 4m, 1000 = 6m, 2000 = 13m, 2500 = 16m, 5000 ~ 32m
 
 
 
