@@ -363,13 +363,18 @@ class ItchClaim:
 
     def _claim_reward(self, game: ItchGame):
         self.valid_reward = False
+        self.scrape_count += 1
+
 
         try:
             r = self._send_web('get', game.url + '/data.json')
 
             dat = json.loads(r.text)
             if 'rewards' not in dat:
+                print(game.url + '  #', flush=True)
+                self.ignore_list.add(game.url)
                 return
+
 
             for item in dat['rewards']:
                 # print(item, flush=True)
@@ -382,7 +387,7 @@ class ItchClaim:
                     continue
 
 
-                print(game.url, flush=True)
+                # print(game.url, flush=True)
                 self.valid_reward = True
 
                 if item['available'] != True:
@@ -407,8 +412,20 @@ class ItchClaim:
                 self.user.owned_games.append(game)
                 print(f"Successfully claimed {game.url}", flush=True)
 
+                break
+
+
         except Exception as err:
             print('[_claim_reward] Failure while claiming ' + game.url + ' = ' + str(err), flush=True)
+
+
+        if self.valid_reward == True:
+            print(game.url, flush=True)
+            self.active_list.add(game.url)
+            self.active_checked.add(game.url)
+        else:
+            print(game.url + '  #', flush=True)
+            self.ignore_list.add(game.url)
 
 
 
@@ -433,17 +450,31 @@ class ItchClaim:
 
     def _scrape_profile(self, url, alt = False):
         try:
+            self.profile_list.add(url)
+
+            if self.scrape_count >= self.scrape_limit:
+                return
+
+
             # print(url, flush=True)
 
             if alt == True:
                 url = (self._substr(url, 0, 'https://', '.itch.io'))[0]
                 url = 'https://itch.io/profile/' + url
+                self.profile_checked_alt.add(url)
+            else:
+                self.profile_checked.add(url)
+
 
             r = self._send_web('get', url)
 
 
             str_index = 0
             while True:
+                if self.scrape_count >= self.scrape_limit:
+                    break
+
+
                 str1 = r.text.find('class="game_cell has_cover lazy_images"', str_index)
                 if str1 == -1:
                     break
@@ -460,9 +491,6 @@ class ItchClaim:
                 if new_profile not in self.profile_list:
                     self.profile_list.add(new_profile)
 
-                    self._scrape_profile(new_profile, True)
-                    self._scrape_profile(new_profile, False)
-
 
                 if game.url in self.owned_items:
                     continue
@@ -471,15 +499,8 @@ class ItchClaim:
                 if game.url in self.ignore_list:
                     continue
 
-
                 self._claim_reward(game)
 
-
-                if self.valid_reward == True:
-                    self.active_list.add(game.url)
-                else:
-                    print(game.url + '  #', flush=True)
-                    self.ignore_list.add(game.url)
 
         except Exception as err:
             print('[_scrape_profile] Failure while checking ' + url + ' = ' + str(err), flush=True)
@@ -639,40 +660,71 @@ class ItchClaim:
 
         self.ignore_list = set()  # faster hashing
         self.active_list = set()
+        self.active_checked = set()
         self.profile_list = set()
-        
+        self.profile_checked = set()
+        self.profile_checked_alt = set()
+
         self.valid_reward = False
+        self.scrape_count = 0
+        self.scrape_limit = 5000  # 500 = 4m, 1000 = 6m, 2000 = 13m, 2500 = 16m, 5000 ~ 32m
 
 
-        myfile = open('scrape-ignore.txt', 'r')
-        for rewards_url in myfile.read().splitlines():
-            # print(rewards_url)
-            self.ignore_list.add(rewards_url)
+
+        myfile = open('ignore.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            # print(game_url)
+            self.ignore_list.add(game_url)
 
 
-        print(f'Scraping profiles ...', flush=True)
 
-        myfile = open('scrape.txt', 'r')
+        myfile = open('active.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            if game_url in self.owned_items:
+                continue
+            if game_url in self.ignore_list:
+                continue
+
+            self.active_list.add(game_url)
+
+
+
+        print(f'Checking old profiles ...', flush=True)
+
+        myfile = open('profiles.txt', 'r')
         for profile_url in myfile.read().splitlines():
             try:
-                if profile_url in self.profile_list:
-                    continue
-
-                self.profile_list.add(profile_url)
-
-                self._scrape_profile(profile_url, True)
-                self._scrape_profile(profile_url, False)
+                if profile_url not in self.profile_checked:
+                    self._scrape_profile(profile_url, True)
 
             except Exception as err:
                 print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
 
 
-        print(f'Scraping collections ...', flush=True)
 
-        myfile = open('scrape-list.txt', 'r')
-        for rewards_url in myfile.read().splitlines():
+        print(f'Checking active profiles ...', flush=True)
+
+        active_list_old = set(self.active_list)
+        for game_url in active_list_old:
+            try:
+                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
+                new_profile = 'https://' + new_author + '.itch.io'
+
+
+                if new_profile not in self.profile_checked:
+                    self._scrape_profile(new_profile, True)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
+
+
+        print(f'Checking collections ...', flush=True)
+
+        myfile = open('collections.txt', 'r')
+        for page_url in myfile.read().splitlines():
             page = 1
-            url = rewards_url + '?format=json'
+            url = page_url + '?format=json'
 
             try:
                 while True:
@@ -694,65 +746,50 @@ class ItchClaim:
                         new_profile = 'https://' + new_author + '.itch.io'
 
 
-                        if new_profile in self.profile_list:
-                            continue
-
-
-                        print(new_profile, flush=True)
-                        self.profile_list.add(new_profile)
-
-                        self._scrape_profile(new_profile, True)
-                        self._scrape_profile(new_profile, False)
+                        if new_profile not in self.profile_checked:
+                            self._scrape_profile(new_profile, True)
 
                     page += 1
-                    url = rewards_url + '?format=json&page=' + str(page)
+                    url = page_url + '?format=json&page=' + str(page)
 
 
             except Exception as err:
                 print('[scrape_rewards] Failure while checking ' + url + ' = ' + str(err), flush=True)
 
 
-        print(f'Scraping account ...', flush=True)
 
-        for game_url in self.owned_items:
+        print(f'Checking new profiles ...', flush=True)
+
+        profile_list_old = set(self.profile_list)
+        for profile_url in profile_list_old:
             try:
-                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
-                new_profile = 'https://' + new_author + '.itch.io'
+                if profile_url not in self.profile_checked:
+                    self._scrape_profile(profile_url, True)
 
-                if new_profile not in self.profile_list:
-                    self.profile_list.add(new_profile)
-
-                    self._scrape_profile(new_profile, True)
-                    self._scrape_profile(new_profile, False)
+                if profile_url not in self.profile_checked_alt:
+                    self._scrape_profile(profile_url, False)
 
             except Exception as err:
-                print('Failure while checking ' + game_url + ' = ' + str(err), flush=True)
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
 
 
-        print(f'Scraping list ...', flush=True)
 
-        myfile = open('scrape-active.txt', 'r')
-        for game_url in myfile.read().splitlines():
+        print(f'Checking old active ...', flush=True)
+
+        active_list_old = set(self.active_list)
+        for game_url in active_list_old:
             try:
-                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
-                new_profile = 'https://' + new_author + '.itch.io'
-
-                if new_profile not in self.profile_list:
-                    self.profile_list.add(new_profile)
-
-                    self._scrape_profile(new_profile, True)
-                    self._scrape_profile(new_profile, False)
+                if self.scrape_count >= self.scrape_limit:
+                    break
 
 
                 if game_url in self.owned_items:
                     continue
-                if game_url in self.active_list:
+                if game_url in self.active_checked:
                     continue
                 if game_url in self.ignore_list:
                     continue
 
-
-                self.active_list.add(game_url)
 
                 game = ItchGame(-1)
                 game.url = game_url
@@ -763,16 +800,20 @@ class ItchClaim:
                 print('Failure while checking ' + game_url + ' = ' + str(err), flush=True)
 
 
-        with open('scrape.txt', 'w') as myfile:
-            for line in sorted(self.profile_list):
-                print(line, file=myfile)  # Python 3.x
+        print(str(self.scrape_count) + ' / ' + str(self.scrape_limit))
 
-        with open('scrape-active.txt', 'w') as myfile:
+
+
+        with open('active.txt', 'w') as myfile:
             for line in sorted(self.active_list):
                 print(line, file=myfile)  # Python 3.x
 
-        with open('scrape-ignore.txt', 'w') as myfile:
+        with open('ignore.txt', 'w') as myfile:
             for line in sorted(self.ignore_list):
+                print(line, file=myfile)  # Python 3.x
+
+        with open('profiles.txt', 'w') as myfile:
+            for line in sorted(self.profile_list):
                 print(line, file=myfile)  # Python 3.x
 
 
