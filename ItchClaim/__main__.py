@@ -314,53 +314,6 @@ class ItchClaim:
 
 
 
-    def _claim_game(self, game: ItchGame):
-        try:
-            r = self.s.post(game.url + '/download_url', json={'csrf_token': self.csrf_token})
-            r.encoding = 'utf-8'
-            resp = json.loads(r.text)
-        except:
-            print(f"ERROR: Failed to check {game.url}", flush=True)
-            return
-
-        if 'errors' in resp:
-            if resp['errors'][0] in ('invalid game', 'invalid user'):
-                if game.check_redirect_url():
-                    self.claim_game(game)
-                    return
-            print(f"ERROR: Failed to claim {game.url}     {resp['errors'][0]}", flush=True)
-            return
-
-
-        download_url = json.loads(r.text)['url']
-        r = self.s.get(download_url)
-        r.encoding = 'utf-8'
-        soup = BeautifulSoup(r.text, 'html.parser')
-        claim_box = soup.find('div', class_='claim_to_download_box warning_box')
-        if claim_box == None:
-            print(f"{game.url} is not claimable", flush=True)
-            return
-
-
-        claim_url = claim_box.find('form')['action']
-        r = self.s.post(claim_url,
-                        data={'csrf_token': self.csrf_token},
-                        headers={ 'Content-Type': 'application/x-www-form-urlencoded'}
-                        )
-        r.encoding = 'utf-8'
-        if r.url == 'https://itch.io/':
-            if self.owns_game_online(game):
-                self.owned_games.append(game)
-                print(f"{game.url} has already been claimed", flush=True)
-                return
-            print(f"ERROR: Unknown failure to claim {game.url}", flush=True)
-
-        else:
-            self.owned_games.append(game)
-            print(f"Successfully claimed {game.url}", flush=True)
-
-
-
     def _claim_reward(self, game: ItchGame):
         self.valid_reward = False
         self.scrape_count += 1
@@ -429,6 +382,64 @@ class ItchClaim:
 
 
 
+    def _claim_game(self, game: ItchGame):
+        try:
+            r = self._send_web('user_post', game.url + '/download_url?csrf_token=' + self.user.csrf_token)
+            r.encoding = 'utf-8'
+            resp = json.loads(r.text)
+
+
+            if 'errors' in resp:
+                if resp['errors'][0] in ('invalid game', 'invalid user'):
+                    if game.check_redirect_url():
+                        self._claim_game(game)
+                        return
+                raise Exception(resp['errors'][0])
+
+
+            download_url = json.loads(r.text)['url']
+            r = self._send_web('user_get', download_url)
+            r.encoding = 'utf-8'
+
+
+            if r.status_code != 200:
+                raise Exception(r.status_code)
+
+            if 'Nothing is available for download yet.' in r.text:
+                raise Exception('Nothing is available for download yet.')
+
+
+            # if 'jubblands' in download_url:
+            #    print(r.text)
+
+
+            soup = BeautifulSoup(r.text, 'html.parser')
+            claim_box = soup.find('div', class_='claim_to_download_box warning_box')
+            if claim_box == None:
+                print(game.url, flush=True)  # Python 3.x
+                with open('itch-miss.txt', 'a') as myfile:
+                    print(game.url, file=myfile)  # Python 3.x
+                return
+
+
+            claim_url = claim_box.find('form')['action']
+            r = self._send_web('user_post', claim_url, True, {'csrf_token': self.user.csrf_token})
+            r.encoding = 'utf-8'
+            if r.url == 'https://itch.io/':
+                if 'promotion is no longer active' in r.text:
+                    raise Exception('promotion is no longer active')
+                else:
+                    raise Exception(r.text)
+
+            else:
+                self.owned_games.append(game)
+                print(f"Successfully claimed {game.url}", flush=True)
+
+        except Exception as err:
+            print(f"ERROR: Failed to claim {game.url} = " + str(err), flush=True)
+
+
+
     def _claim_free(self, url: str = 'https://itchclaim.tmbpeter.com/api/active.json'):
         """Claim all unowned games. Requires login.
         Args:
@@ -444,7 +455,7 @@ class ItchClaim:
                     continue
 
             if not self.user.owns_game(game):
-                self.user.claim_game(game)
+                self._claim_game(game)
 
 
 
@@ -667,7 +678,7 @@ class ItchClaim:
 
         self.valid_reward = False
         self.scrape_count = 0
-        self.scrape_limit = 2000  # 500 = 4m, 1000 = 6m, 2000 = 13m, 2500 = 16m, 5000 ~ 32m
+        self.scrape_limit = 1000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
 
 
 
@@ -774,30 +785,20 @@ class ItchClaim:
 
 
 
-        print(f'Checking old active ...', flush=True)
+        print(f'Checking ignored profiles ...', flush=True)
 
-        active_list_old = set(self.active_list)
-        for game_url in active_list_old:
+        profile_list_ignore = set(self.ignore_list)
+        for profile_url in profile_list_ignore:
             try:
-                if self.scrape_count >= self.scrape_limit:
-                    break
+                if profile_url not in self.profile_checked:
+                    self._scrape_profile(profile_url, True)
 
-
-                if game_url in self.owned_items:
-                    continue
-                if game_url in self.active_checked:
-                    continue
-                if game_url in self.ignore_list:
-                    continue
-
-
-                game = ItchGame(-1)
-                game.url = game_url
-
-                self._claim_reward(game)
+                if profile_url not in self.profile_checked_alt:
+                    self._scrape_profile(profile_url, False)
 
             except Exception as err:
-                print('Failure while checking ' + game_url + ' = ' + str(err), flush=True)
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
 
 
         print(str(self.scrape_count) + ' / ' + str(self.scrape_limit))
@@ -1032,18 +1033,7 @@ class ItchClaim:
         Args:
             url (str): Game to claim"""
 
-        if self.user is None:
-            print('You must be logged in', flush=True)
-            return
-        if len(self.user.owned_games) == 0:
-            print('User\'s library not found in cache. Downloading it now', flush=True)
-            self.user.reload_owned_games()
-            self.user.save_session()
-
-        for owned_url in [owned_game.url for owned_game in self.user.owned_games]:
-            if owned_url == url:
-                print(f"{game.url} already claimed", flush=True)  # Python 3.x
-                return
+        self.scrape_count = 0
 
         print(f'Attempting to claim {url}', flush=True)
         game: ItchGame = ItchGame.from_api(url)
@@ -1052,15 +1042,122 @@ class ItchClaim:
 
 
 
-    def sync(self):
+    def claim_rewards(self):
+        """Claim all unowned games. Requires login.
+        Args:
+            url (str): The URL to download the file from"""
+            # https://www.google.com/search?q=%2B%22itch.io%22+%2B%22free+community+Copy%22
+            # https://www.google.com/search?q=itch.io+%22community+copies%22
+
+
+        self._login()
+
+        self.scrape_count = 0
+
+        self.active_list = set()
+        self.active_checked = set()
+        self.ignore_list = set()
+
+
+        myfile = open('active.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            if game_url in self.owned_items:
+                continue
+
+            game = ItchGame(-1)
+            game.url = game_url
+
+            self._claim_reward(game)
+
+
+
+    def download_url(self, url):
         """Claim one game. Requires login.
         Args:
             url (str): Game to claim"""
 
+        def _get_game(game: ItchGame):
+            try:
+                r = self._send_web('user_post', game.url + '/download_url?csrf_token=' + self.user.csrf_token)
+                r.encoding = 'utf-8'
+                resp = json.loads(r.text)
+
+
+                if 'errors' in resp:
+                    if resp['errors'][0] in ('invalid game', 'invalid user'):
+                        if game.check_redirect_url():
+                            _get_game(game)
+                            return
+                    raise Exception(resp['errors'][0])
+
+
+                download_url = json.loads(r.text)['url']
+                r = self._send_web('user_get', download_url)
+                r.encoding = 'utf-8'
+
+
+                if r.status_code != 200:
+                    raise Exception(r.status_code)
+
+                if 'Nothing is available for download yet.' in r.text:
+                    raise Exception('Nothing is available for download yet.')
+
+
+                with open('debug.htm', 'w', encoding="utf-8") as myfile:
+                    print(r.text, file=myfile)
+
+
+                downloadid = (self._substr(r.text, 0, 'data-upload_id="', '"'))[0]
+                download_url = game.url + '/file/' + str(downloadid) + '?source=game_download&after_download_lightbox=1&as_props=1'
+                print(str(downloadid))
+
+                r = self._send_web('user_post', download_url)
+                r.encoding = 'utf-8'
+
+                with open('debug2.htm', 'w', encoding="utf-8") as myfile:
+                    print(r.text, file=myfile)
+
+
+                download_url = json.loads(r.text)['url']
+                print(download_url)
+
+                r = self.user.s.get(download_url, stream=True)
+                r.raw.decode_content = True
+
+                with open('debug3.bin', 'wb') as myfile:
+                    for chunk in r.iter_content(chunk_size=1024): 
+                        myfile.write(chunk)
+
+            except Exception as err:
+                print(f"ERROR: Failed to get {game.url} = " + str(err), flush=True)
+
+
+        print(f'Attempting to download {url}', flush=True)
+        game = ItchGame(-1)
+        game.url = url
+        _get_game(game)
+
+
+
+    def sync(self):
         self._login()
+
+
+        self.master_list = set()
+        self.owned_items = set()
+
+        with open('itch-master.txt', 'r') as myfile:
+            for game_url in myfile.read().splitlines():
+                self.master_list.add(game_url)
+
+        for game_url in [owned_game.url for owned_game in self.user.owned_games]:
+            self.master_list.add(game_url)
+            self.owned_items.add(game_url)
+
 
         self.auto_rating()
         self._claim_free()
+
 
         with open('itch-owned.txt', 'w') as myfile:
             for game in self.user.owned_games:
@@ -1068,6 +1165,20 @@ class ItchClaim:
                     continue
                 print(f'{game.name:60s} {game.url:50s}', file=myfile)  # Python 3.x
 
+
+        with open('itch-master.txt', 'w') as myfile:
+            for game_url in sorted(self.master_list):
+                print(game_url, file=myfile)  # Python 3.x
+
+
+        with open('itch-removed.txt', 'w') as myfile:
+            for game_url in sorted(self.master_list):
+                if game_url not in self.owned_items:
+                    print(game_url, file=myfile)  # Python 3.x
+
+
+#        with open('debug.htm', 'w', encoding="utf-8") as myfile:
+#            print(r.text, file=myfile)
 
 
 # pylint: disable=missing-function-docstring
