@@ -678,7 +678,7 @@ class ItchClaim:
 
         self.valid_reward = False
         self.scrape_count = 0
-        self.scrape_limit = 1000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
+        self.scrape_limit = 2000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
 
 
 
@@ -700,19 +700,6 @@ class ItchClaim:
 
 
 
-        print(f'Checking old profiles ...', flush=True)
-
-        myfile = open('profiles.txt', 'r')
-        for profile_url in myfile.read().splitlines():
-            try:
-                if profile_url not in self.profile_checked:
-                    self._scrape_profile(profile_url, True)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
         print(f'Checking active profiles ...', flush=True)
 
         active_list_old = set(self.active_list)
@@ -724,6 +711,22 @@ class ItchClaim:
 
                 if new_profile not in self.profile_checked:
                     self._scrape_profile(new_profile, True)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
+
+
+        print(f'Checking new profiles ...', flush=True)
+
+        profile_list_old = set(self.profile_list)
+        for profile_url in profile_list_old:
+            try:
+                if profile_url not in self.profile_checked:
+                    self._scrape_profile(profile_url, True)
+
+                if profile_url not in self.profile_checked_alt:
+                    self._scrape_profile(profile_url, False)
 
             except Exception as err:
                 print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
@@ -769,16 +772,13 @@ class ItchClaim:
 
 
 
-        print(f'Checking new profiles ...', flush=True)
+        print(f'Checking old profiles ...', flush=True)
 
-        profile_list_old = set(self.profile_list)
-        for profile_url in profile_list_old:
+        myfile = open('profiles.txt', 'r')
+        for profile_url in myfile.read().splitlines():
             try:
                 if profile_url not in self.profile_checked:
                     self._scrape_profile(profile_url, True)
-
-                if profile_url not in self.profile_checked_alt:
-                    self._scrape_profile(profile_url, False)
 
             except Exception as err:
                 print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
