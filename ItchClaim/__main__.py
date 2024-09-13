@@ -459,7 +459,7 @@ class ItchClaim:
 
 
 
-    def _scrape_profile(self, url, alt = False):
+    def _scrape_profile(self, url, main = True):
         try:
             self.profile_list.add(url)
 
@@ -469,12 +469,12 @@ class ItchClaim:
 
             # print(url, flush=True)
 
-            if alt == True:
+            if main == True:
+                self.profile_checked.add(url)
+            else:
                 url = (self._substr(url, 0, 'https://', '.itch.io'))[0]
                 url = 'https://itch.io/profile/' + url
                 self.profile_checked_alt.add(url)
-            else:
-                self.profile_checked.add(url)
 
 
             r = self._send_web('get', url)
@@ -708,8 +708,25 @@ class ItchClaim:
                 new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
                 new_profile = 'https://' + new_author + '.itch.io'
 
+                if new_profile not in self.profile_checked:
+                    # print(new_profile + '  #', flush=True)
+                    self._scrape_profile(new_profile, True)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
+
+
+        print(f'Checking owned collection ...', flush=True)
+
+        owned_games_old = set(self.owned_games)
+        for game_url in owned_games_old:
+            try:
+                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
+                new_profile = 'https://' + new_author + '.itch.io'
 
                 if new_profile not in self.profile_checked:
+                    # print(new_profile + '  #', flush=True)
                     self._scrape_profile(new_profile, True)
 
             except Exception as err:
@@ -723,10 +740,8 @@ class ItchClaim:
         for profile_url in profile_list_old:
             try:
                 if profile_url not in self.profile_checked:
+                    # print(profile_url, flush=True)
                     self._scrape_profile(profile_url, True)
-
-                if profile_url not in self.profile_checked_alt:
-                    self._scrape_profile(profile_url, False)
 
             except Exception as err:
                 print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
@@ -761,6 +776,7 @@ class ItchClaim:
 
 
                         if new_profile not in self.profile_checked:
+                            # print(new_profile, flush=True)
                             self._scrape_profile(new_profile, True)
 
                     page += 1
@@ -772,12 +788,27 @@ class ItchClaim:
 
 
 
+        print(f'Re-checking alternate profiles ...', flush=True)
+
+        profile_list_old = set(self.profile_list)
+        for profile_url in profile_list_old:
+            try:
+                if profile_url not in self.profile_checked_alt:
+                    # print(profile_url, flush=True)
+                    self._scrape_profile(profile_url, False)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
+
+
         print(f'Checking old profiles ...', flush=True)
 
         myfile = open('profiles.txt', 'r')
         for profile_url in myfile.read().splitlines():
             try:
                 if profile_url not in self.profile_checked:
+                    # print(profile_url, flush=True)
                     self._scrape_profile(profile_url, True)
 
             except Exception as err:
@@ -791,9 +822,11 @@ class ItchClaim:
         for profile_url in profile_list_ignore:
             try:
                 if profile_url not in self.profile_checked:
+                    # print(profile_url, flush=True)
                     self._scrape_profile(profile_url, True)
 
                 if profile_url not in self.profile_checked_alt:
+                    # print(profile_url, flush=True)
                     self._scrape_profile(profile_url, False)
 
             except Exception as err:
