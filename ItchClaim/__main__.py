@@ -734,20 +734,6 @@ class ItchClaim:
 
 
 
-        print(f'Checking new profiles ...', flush=True)
-
-        profile_list_old = set(self.profile_list)
-        for profile_url in profile_list_old:
-            try:
-                if profile_url not in self.profile_checked:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, True)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
         print(f'Checking collections ...', flush=True)
 
         myfile = open('collections.txt', 'r')
@@ -785,6 +771,20 @@ class ItchClaim:
 
             except Exception as err:
                 print('[scrape_rewards] Failure while checking ' + url + ' = ' + str(err), flush=True)
+
+
+
+        print(f'Checking new profiles ...', flush=True)
+
+        profile_list_old = set(self.profile_list)
+        for profile_url in profile_list_old:
+            try:
+                if profile_url not in self.profile_checked:
+                    # print(profile_url, flush=True)
+                    self._scrape_profile(profile_url, True)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
 
 
 
