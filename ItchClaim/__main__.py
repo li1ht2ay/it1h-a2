@@ -228,7 +228,7 @@ class ItchClaim:
 
         self.active_sales = set()  # hashed, faster lookup
         self.future_sales = set()
-        self.owned_items = set()
+        self.owned_list = set()
 
 
         active_db = DiskManager.download_from_remote_cache('https://itchclaim.tmbpeter.com/api/active.json')
@@ -242,7 +242,7 @@ class ItchClaim:
             self.future_sales.add(game.url)
 
         for game_url in [owned_game.url for owned_game in self.user.owned_games]:
-            self.owned_items.add(game_url)
+            self.owned_list.add(game_url)
 
 
 
@@ -432,7 +432,7 @@ class ItchClaim:
                     raise Exception(r.text)
 
             else:
-                self.owned_games.append(game)
+                self.owned_list.append(game)
                 print(f"Successfully claimed {game.url}", flush=True)
 
         except Exception as err:
@@ -503,7 +503,7 @@ class ItchClaim:
                     self.profile_list.add(new_profile)
 
 
-                if game.url in self.owned_items:
+                if game.url in self.owned_list:
                     continue
                 if game.url in self.active_list:
                     continue
@@ -623,7 +623,7 @@ class ItchClaim:
                         sales_log.append(url)
 
 
-                    if url not in self.owned_items:
+                    if url not in self.owned_list:
                         if future_sale:
                             print('Must claim later ' + url, flush=True)
 
@@ -637,7 +637,7 @@ class ItchClaim:
                             game: ItchGame = ItchGame.from_api(url)
                             self.user.claim_game(game)
 
-                            if url not in self.owned_items:
+                            if url not in self.owned_list:
                                 print('Not claimable ' + url, flush=True)
 
                                 if debug_miss == 0:
@@ -678,7 +678,7 @@ class ItchClaim:
 
         self.valid_reward = False
         self.scrape_count = 0
-        self.scrape_limit = 2000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
+        self.scrape_limit = 1000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
 
 
 
@@ -691,7 +691,7 @@ class ItchClaim:
 
         myfile = open('active.txt', 'r')
         for game_url in myfile.read().splitlines():
-            if game_url in self.owned_items:
+            if game_url in self.owned_list:
                 continue
             if game_url in self.ignore_list:
                 continue
@@ -719,8 +719,8 @@ class ItchClaim:
 
         print(f'Checking owned collection ...', flush=True)
 
-        owned_games_old = set(self.owned_games)
-        for game_url in owned_games_old:
+        owned_list_old = set(self.owned_list)
+        for game_url in owned_list_old:
             try:
                 new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
                 new_profile = 'https://' + new_author + '.itch.io'
@@ -975,7 +975,7 @@ class ItchClaim:
                             continue
 
 
-                        if check == True and line in self.owned_items:
+                        if check == True and line in self.owned_list:
                             continue
 
 
@@ -1094,7 +1094,7 @@ class ItchClaim:
 
         myfile = open('active.txt', 'r')
         for game_url in myfile.read().splitlines():
-            if game_url in self.owned_items:
+            if game_url in self.owned_list:
                 continue
 
             game = ItchGame(-1)
@@ -1177,7 +1177,7 @@ class ItchClaim:
 
 
         self.master_list = set()
-        self.owned_items = set()
+        self.owned_list = set()
 
         with open('itch-master.txt', 'r') as myfile:
             for game_url in myfile.read().splitlines():
@@ -1185,7 +1185,7 @@ class ItchClaim:
 
         for game_url in [owned_game.url for owned_game in self.user.owned_games]:
             self.master_list.add(game_url)
-            self.owned_items.add(game_url)
+            self.owned_list.add(game_url)
 
 
         self.auto_rating()
@@ -1206,7 +1206,7 @@ class ItchClaim:
 
         with open('itch-removed.txt', 'w') as myfile:
             for game_url in sorted(self.master_list):
-                if game_url not in self.owned_items:
+                if game_url not in self.owned_list:
                     print(game_url, file=myfile)  # Python 3.x
 
 
