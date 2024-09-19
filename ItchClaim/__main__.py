@@ -821,13 +821,97 @@ class ItchClaim:
         profile_list_ignore = set(self.ignore_list)
         for profile_url in profile_list_ignore:
             try:
-                if profile_url not in self.profile_checked:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, True)
+                new_author = (self._substr(profile_url, 0, 'https://', '.itch.io'))[0]
+                new_profile = 'https://' + new_author + '.itch.io'
 
-                if profile_url not in self.profile_checked_alt:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, False)
+
+                if new_profile not in self.profile_checked:
+                    # print(new_profile, flush=True)
+                    self._scrape_profile(new_profile, True)
+
+                if new_profile not in self.profile_checked_alt:
+                    # print(new_profile, flush=True)
+                    self._scrape_profile(new_profile, False)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
+
+
+        print(str(self.scrape_count) + ' / ' + str(self.scrape_limit))
+
+
+
+        with open('active.txt', 'w') as myfile:
+            for line in sorted(self.active_list):
+                print(line, file=myfile)  # Python 3.x
+
+        with open('ignore.txt', 'w') as myfile:
+            for line in sorted(self.ignore_list):
+                print(line, file=myfile)  # Python 3.x
+
+        with open('profiles.txt', 'w') as myfile:
+            for line in sorted(self.profile_list):
+                print(line, file=myfile)  # Python 3.x
+
+
+
+
+
+
+    def scrape_rewards_owned(self):
+        """Claim all unowned games. Requires login.
+        Args:
+            url (str): The URL to download the file from"""
+            # https://www.google.com/search?q=%2B%22itch.io%22+%2B%22free+community+Copy%22
+            # https://www.google.com/search?q=itch.io+%22community+copies%22
+
+
+        self._login()
+
+
+        self.ignore_list = set()  # faster hashing
+        self.active_list = set()
+        self.active_checked = set()
+        self.profile_list = set()
+        self.profile_checked = set()
+        self.profile_checked_alt = set()
+
+        self.valid_reward = False
+        self.scrape_count = 0
+        self.scrape_limit = 1000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
+
+
+
+        myfile = open('ignore.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            # print(game_url)
+            self.ignore_list.add(game_url)
+
+
+
+        myfile = open('active.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            if game_url in self.owned_list:
+                continue
+            if game_url in self.ignore_list:
+                continue
+
+            self.active_list.add(game_url)
+
+
+
+        print(f'Checking owned collection ...', flush=True)
+
+        owned_list_old = set(self.owned_list)
+        for game_url in owned_list_old:
+            try:
+                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
+                new_profile = 'https://' + new_author + '.itch.io'
+
+                if new_profile not in self.profile_checked:
+                    # print(new_profile + '  #', flush=True)
+                    self._scrape_profile(new_profile, True)
 
             except Exception as err:
                 print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
