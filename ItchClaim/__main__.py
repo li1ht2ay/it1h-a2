@@ -37,6 +37,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
+from datetime import datetime
 
 # pylint: disable=missing-class-docstring
 class ItchClaim:
@@ -272,11 +273,11 @@ class ItchClaim:
 
 
     def _send_web(self, type: str, url: str, redirect = True, payload = None):
-        timer = 25
+        timer = 10
 
         count = 0
         while True:
-            sleep(25/1000)
+            sleep(10/1000)
 
             try:
                 if type == 'get':
@@ -305,7 +306,6 @@ class ItchClaim:
             if r.status_code == 404:  # Not found
                 break
             if r.status_code == 429:  # Too many requests
-                sleep(50/1000)
                 continue
             if r.status_code >= 500:  # Server error
                 break
@@ -857,8 +857,6 @@ class ItchClaim:
 
 
 
-
-
     def scrape_rewards_owned(self):
         """Claim all unowned games. Requires login.
         Args:
@@ -1300,4 +1298,7 @@ class ItchClaim:
 
 # pylint: disable=missing-function-docstring
 def main():
+    old = datetime.now()
     Fire(ItchClaim)
+    print(old)
+    print(datetime.now())
