@@ -277,7 +277,7 @@ class ItchClaim:
 
         count = 0
         while True:
-            sleep(10/1000)
+            # sleep(1/1000)
 
             try:
                 if type == 'get':
@@ -306,6 +306,8 @@ class ItchClaim:
             if r.status_code == 404:  # Not found
                 break
             if r.status_code == 429:  # Too many requests
+                print("429")
+                sleep(5/1000)
                 continue
             if r.status_code >= 500:  # Server error
                 break
@@ -678,7 +680,7 @@ class ItchClaim:
 
         self.valid_reward = False
         self.scrape_count = 0
-        self.scrape_limit = 1000  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
+        self.scrape_limit = 500  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
 
 
 
@@ -701,6 +703,7 @@ class ItchClaim:
 
 
         print(f'Checking active profiles ...', flush=True)
+        print(datetime.now())
 
         active_list_old = set(self.active_list)
         for game_url in active_list_old:
@@ -718,6 +721,7 @@ class ItchClaim:
 
 
         print(f'Checking owned collection ...', flush=True)
+        print(datetime.now())
 
         owned_list_old = set(self.owned_list)
         for game_url in owned_list_old:
@@ -735,6 +739,7 @@ class ItchClaim:
 
 
         print(f'Checking collections ...', flush=True)
+        print(datetime.now())
 
         myfile = open('collections.txt', 'r')
         for page_url in myfile.read().splitlines():
@@ -762,7 +767,7 @@ class ItchClaim:
 
 
                         if new_profile not in self.profile_checked:
-                            # print(new_profile, flush=True)
+                            print(new_profile, flush=True)
                             self._scrape_profile(new_profile, True)
 
                     page += 1
@@ -775,6 +780,7 @@ class ItchClaim:
 
 
         print(f'Checking new profiles ...', flush=True)
+        print(datetime.now())
 
         profile_list_old = set(self.profile_list)
         for profile_url in profile_list_old:
@@ -789,6 +795,7 @@ class ItchClaim:
 
 
         print(f'Re-checking alternate profiles ...', flush=True)
+        print(datetime.now())
 
         profile_list_old = set(self.profile_list)
         for profile_url in profile_list_old:
@@ -803,6 +810,7 @@ class ItchClaim:
 
 
         print(f'Checking old profiles ...', flush=True)
+        print(datetime.now())
 
         myfile = open('profiles.txt', 'r')
         for profile_url in myfile.read().splitlines():
@@ -817,6 +825,7 @@ class ItchClaim:
 
 
         print(f'Checking ignored profiles ...', flush=True)
+        print(datetime.now())
 
         profile_list_ignore = set(self.ignore_list)
         for profile_url in profile_list_ignore:
@@ -1299,6 +1308,9 @@ class ItchClaim:
 # pylint: disable=missing-function-docstring
 def main():
     old = datetime.now()
+    print(datetime.now())
+
     Fire(ItchClaim)
+
     print(old)
     print(datetime.now())
