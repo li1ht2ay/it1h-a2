@@ -306,7 +306,7 @@ class ItchClaim:
             if r.status_code == 404:  # Not found
                 break
             if r.status_code == 429:  # Too many requests
-                print("429")
+                # print("429")
                 sleep(5/1000)
                 continue
             if r.status_code >= 500:  # Server error
@@ -680,7 +680,7 @@ class ItchClaim:
 
         self.valid_reward = False
         self.scrape_count = 0
-        self.scrape_limit = 500  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
+        self.scrape_limit = 750  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
 
 
 
@@ -780,6 +780,21 @@ class ItchClaim:
 
 
         print(f'Checking new profiles ...', flush=True)
+        print(datetime.now())
+
+        profile_list_old = set(self.profile_list)
+        for profile_url in profile_list_old:
+            try:
+                if profile_url not in self.profile_checked:
+                    # print(profile_url, flush=True)
+                    self._scrape_profile(profile_url, True)
+
+            except Exception as err:
+                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
+
+
+
+        print(f'Re-checking new profiles ...', flush=True)
         print(datetime.now())
 
         profile_list_old = set(self.profile_list)
