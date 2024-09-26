@@ -306,7 +306,7 @@ class ItchClaim:
             if r.status_code == 404:  # Not found
                 break
             if r.status_code == 429:  # Too many requests
-                # print("429")
+                print("429 - " + int(response.headers["Retry-After"]))
                 sleep(5/1000)
                 continue
             if r.status_code >= 500:  # Server error
@@ -325,6 +325,7 @@ class ItchClaim:
             r = self._send_web('get', game.url + '/data.json')
 
             dat = json.loads(r.text)
+
             if 'rewards' not in dat:
                 print(game.url + '  #', flush=True)
                 self.ignore_list.add(game.url)
@@ -344,6 +345,7 @@ class ItchClaim:
 
                 # print(game.url, flush=True)
                 self.valid_reward = True
+
 
                 if item['available'] != True:
                     continue
@@ -377,10 +379,9 @@ class ItchClaim:
         if self.valid_reward == True:
             print(game.url, flush=True)
             self.active_list.add(game.url)
-            self.active_checked.add(game.url)
+
         else:
             print(game.url + '  #', flush=True)
-            self.ignore_list.add(game.url)
 
 
 
@@ -434,7 +435,7 @@ class ItchClaim:
                     raise Exception(r.text)
 
             else:
-                self.owned_list.append(game)
+                self.owned_list.add(game)
                 print(f"Successfully claimed {game.url}", flush=True)
 
         except Exception as err:
@@ -463,9 +464,13 @@ class ItchClaim:
 
     def _scrape_profile(self, url, main = True):
         try:
-            self.profile_list.add(url)
+            if main == True:
+                self.profile_list.add(url)
+
 
             if self.scrape_count >= self.scrape_limit:
+                if main == True:
+                    self.profile_new.add(url)
                 return
 
 
@@ -473,6 +478,7 @@ class ItchClaim:
 
             if main == True:
                 self.profile_checked.add(url)
+
             else:
                 url = (self._substr(url, 0, 'https://', '.itch.io'))[0]
                 url = 'https://itch.io/profile/' + url
@@ -484,10 +490,6 @@ class ItchClaim:
 
             str_index = 0
             while True:
-                if self.scrape_count >= self.scrape_limit:
-                    break
-
-
                 str1 = r.text.find('class="game_cell has_cover lazy_images"', str_index)
                 if str1 == -1:
                     break
@@ -501,9 +503,6 @@ class ItchClaim:
                 new_author = (self._substr(game.url, 0, 'https://', '.itch.io'))[0]
                 new_profile = 'https://' + new_author + '.itch.io'
 
-                if new_profile not in self.profile_list:
-                    self.profile_list.add(new_profile)
-
 
                 if game.url in self.owned_list:
                     continue
@@ -512,7 +511,16 @@ class ItchClaim:
                 if game.url in self.ignore_list:
                     continue
 
+
+                self.profile_new.add(new_profile)
+
+
+                # print(game.url + '  ?')
                 self._claim_reward(game)
+
+
+                if self.valid_reward == True:
+                    self.profile_active.add(new_profile)
 
 
         except Exception as err:
@@ -673,14 +681,19 @@ class ItchClaim:
 
         self.ignore_list = set()  # faster hashing
         self.active_list = set()
-        self.active_checked = set()
+
+        self.profile_active = set()
+        self.profile_ignore = set()
+        self.profile_new = set()
         self.profile_list = set()
+
         self.profile_checked = set()
         self.profile_checked_alt = set()
 
         self.valid_reward = False
         self.scrape_count = 0
         self.scrape_limit = 750  # 500 = 4m, 1000 = 6m, [2000] = 13m, 2500 = 16m, 5000 ~ 32m
+        # self.scrape_limit = 9999999999
 
 
 
@@ -690,45 +703,31 @@ class ItchClaim:
             self.ignore_list.add(game_url)
 
 
-
         myfile = open('active.txt', 'r')
         for game_url in myfile.read().splitlines():
             if game_url in self.owned_list:
                 continue
-            if game_url in self.ignore_list:
-                continue
 
             self.active_list.add(game_url)
+
+
+        myfile = open('profiles.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            self.profile_list.add(game_url)
+
+
+        myfile = open('profiles-active.txt', 'r')
+        for game_url in myfile.read().splitlines():
+            self.profile_active.add(game_url)
 
 
 
         print(f'Checking active profiles ...', flush=True)
         print(datetime.now())
 
-        active_list_old = set(self.active_list)
-        for game_url in active_list_old:
+        active_list_old = set(self.profile_active)
+        for new_profile in active_list_old:
             try:
-                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
-                new_profile = 'https://' + new_author + '.itch.io'
-
-                if new_profile not in self.profile_checked:
-                    # print(new_profile + '  #', flush=True)
-                    self._scrape_profile(new_profile, True)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
-        print(f'Checking owned collection ...', flush=True)
-        print(datetime.now())
-
-        owned_list_old = set(self.owned_list)
-        for game_url in owned_list_old:
-            try:
-                new_author = (self._substr(game_url, 0, 'https://', '.itch.io'))[0]
-                new_profile = 'https://' + new_author + '.itch.io'
-
                 if new_profile not in self.profile_checked:
                     # print(new_profile + '  #', flush=True)
                     self._scrape_profile(new_profile, True)
@@ -755,6 +754,7 @@ class ItchClaim:
                     if dat['num_items'] == 0:
                         break
 
+
                     str_index = 0
                     while True:
                         str1 = dat['content'].find('class="game_cell has_cover lazy_images"', str_index)
@@ -767,7 +767,7 @@ class ItchClaim:
 
 
                         if new_profile not in self.profile_checked:
-                            print(new_profile, flush=True)
+                            # print(new_profile, flush=True)
                             self._scrape_profile(new_profile, True)
 
                     page += 1
@@ -782,80 +782,27 @@ class ItchClaim:
         print(f'Checking new profiles ...', flush=True)
         print(datetime.now())
 
-        profile_list_old = set(self.profile_list)
-        for profile_url in profile_list_old:
+        profile_list_old = set(self.profile_new)
+        for new_profile in profile_list_old:
             try:
-                if profile_url not in self.profile_checked:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, True)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
-        print(f'Re-checking new profiles ...', flush=True)
-        print(datetime.now())
-
-        profile_list_old = set(self.profile_list)
-        for profile_url in profile_list_old:
-            try:
-                if profile_url not in self.profile_checked:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, True)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
-        print(f'Re-checking alternate profiles ...', flush=True)
-        print(datetime.now())
-
-        profile_list_old = set(self.profile_list)
-        for profile_url in profile_list_old:
-            try:
-                if profile_url not in self.profile_checked_alt:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, False)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
-        print(f'Checking old profiles ...', flush=True)
-        print(datetime.now())
-
-        myfile = open('profiles.txt', 'r')
-        for profile_url in myfile.read().splitlines():
-            try:
-                if profile_url not in self.profile_checked:
-                    # print(profile_url, flush=True)
-                    self._scrape_profile(profile_url, True)
-
-            except Exception as err:
-                print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
-
-
-
-        print(f'Checking ignored profiles ...', flush=True)
-        print(datetime.now())
-
-        profile_list_ignore = set(self.ignore_list)
-        for profile_url in profile_list_ignore:
-            try:
-                new_author = (self._substr(profile_url, 0, 'https://', '.itch.io'))[0]
-                new_profile = 'https://' + new_author + '.itch.io'
-
-
                 if new_profile not in self.profile_checked:
                     # print(new_profile, flush=True)
                     self._scrape_profile(new_profile, True)
 
-                if new_profile not in self.profile_checked_alt:
+            except Exception as err:
+                print('Failure while checking ' + new_profile + ' = ' + str(err), flush=True)
+
+
+
+        print(f'Checking all profiles ...', flush=True)
+        print(datetime.now())
+
+        profile_list_old = set(self.profile_list)
+        for new_profile in profile_list_old:
+            try:
+                if new_profile not in self.profile_checked:
                     # print(new_profile, flush=True)
-                    self._scrape_profile(new_profile, False)
+                    self._scrape_profile(new_profile, True)
 
             except Exception as err:
                 print('Failure while checking ' + profile_url + ' = ' + str(err), flush=True)
@@ -875,7 +822,11 @@ class ItchClaim:
                 print(line, file=myfile)  # Python 3.x
 
         with open('profiles.txt', 'w') as myfile:
-            for line in sorted(self.profile_list):
+            for line in sorted(self.profile_ignore):
+                print(line, file=myfile)  # Python 3.x
+
+        with open('profiles-active.txt', 'w') as myfile:
+            for line in sorted(self.profile_active):
                 print(line, file=myfile)  # Python 3.x
 
 
@@ -894,7 +845,6 @@ class ItchClaim:
 
         self.ignore_list = set()  # faster hashing
         self.active_list = set()
-        self.active_checked = set()
         self.profile_list = set()
         self.profile_checked = set()
         self.profile_checked_alt = set()
@@ -1194,7 +1144,6 @@ class ItchClaim:
         self.scrape_count = 0
 
         self.active_list = set()
-        self.active_checked = set()
         self.ignore_list = set()
 
 
