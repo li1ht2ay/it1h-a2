@@ -822,7 +822,7 @@ class ItchClaim:
                 print(line, file=myfile)  # Python 3.x
 
         with open('profiles.txt', 'w') as myfile:
-            for line in sorted(self.profile_ignore):
+            for line in sorted(self.profile_list):
                 print(line, file=myfile)  # Python 3.x
 
         with open('profiles-active.txt', 'w') as myfile:
