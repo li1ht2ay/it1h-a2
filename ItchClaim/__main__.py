@@ -306,7 +306,7 @@ class ItchClaim:
             if r.status_code == 404:  # Not found
                 break
             if r.status_code == 429:  # Too many requests
-                print("429 - " + int(response.headers["Retry-After"]))
+                print("429 - " + int(r.headers["Retry-After"]))
                 sleep(5/1000)
                 continue
             if r.status_code >= 500:  # Server error
