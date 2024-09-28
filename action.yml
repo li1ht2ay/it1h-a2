@@ -116,6 +116,7 @@ runs:
         unzip -o -j scrape.zip
       else
         echo -n "" > profiles.txt
+        echo -n "" > profiles-active.txt
         echo -n "" > ignore.txt
         echo -n "" > collections.txt
         echo -n "" > active.txt
@@ -127,6 +128,7 @@ runs:
         unzip -o -j scrape2.zip -d scrape2
 
         cat scrape2/profiles.txt >> profiles.txt
+        cat scrape2/profiles-active.txt >> profiles-active.txt
         cat scrape2/ignore.txt >> ignore.txt
         cat scrape2/collections.txt >> collections.txt
         cat scrape2/active.txt >> active.txt
@@ -164,6 +166,11 @@ runs:
 
       if test -f "profiles.txt"; then
         git add profiles.txt
+        flag=1
+      fi
+
+      if test -f "profiles-active.txt"; then
+        git add profiles-active.txt
         flag=1
       fi
 
