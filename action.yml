@@ -99,9 +99,11 @@ runs:
       CXX: ccache g++
     shell: bash
     run: |
-      python -m build
-      ls -R
-      pip install ./dist/*.gz
+      git submodule init
+      git submodule update
+
+      pip install -r requirements.txt
+      pip install -r ItchClaim/flaresolverr/requirements.txt
 
 
 
@@ -122,7 +124,7 @@ runs:
         echo -n "" > active.txt
       fi
 
-      itchclaim --login ${{ inputs.name }} --password ${{ inputs.password }} --totp ${{ inputs.totp }} scrape_rewards
+      python itchclaim.py --login ${{ inputs.name }} --password ${{ inputs.password }} --totp ${{ inputs.totp }} scrape_rewards
 
       mv *.txt ../
 
