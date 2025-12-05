@@ -110,6 +110,13 @@ runs:
       CXX: ccache g++
     shell: bash
     run: |
+      if curl -L -o owned-list.txt --fail 'https://github.com/${{ github.repository_owner }}/it1h-0/raw/refs/heads/scrape-rewards-ci/owned-list.txt'; then
+        echo -n ""
+      else
+        echo -n "" > owned-list.txt
+      fi
+      
+
       if curl -L -o scrape.zip --fail 'https://github.com/${{ github.repository_owner }}/it1h-a2/archive/refs/heads/scrape-rewards-ci.zip'; then
         unzip -o -j scrape.zip
       else
