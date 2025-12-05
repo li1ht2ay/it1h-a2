@@ -120,7 +120,7 @@ runs:
         echo -n "" > active.txt
       fi
 
-      python ItchClaim/ItchCustom.py scrape_rewards
+      python ItchClaim/ItchCustom.py active_reward
 
       mv *.txt ../
 
