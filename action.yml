@@ -181,6 +181,11 @@ runs:
         flag=1
       fi
 
+      if test -f "miss.txt"; then
+        git add miss.txt
+        flag=1
+      fi
+
 
       if (( $flag == 1 )); then
         git commit -m "[cache] rewards"
