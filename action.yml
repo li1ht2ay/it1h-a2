@@ -117,7 +117,7 @@ runs:
       fi
       
 
-      if curl -L -o scrape.zip --fail 'https://github.com/${{ github.repository_owner }}/it1h-a2/archive/refs/heads/scrape-rewards-ci.zip'; then
+      if curl -L -o scrape.zip --fail 'https://github.com/${{ github.repository_owner }}/it1h-d4/archive/refs/heads/scrape-rewards-ci.zip'; then
         unzip -o -j scrape.zip
       else
         echo -n "" > profiles.txt
